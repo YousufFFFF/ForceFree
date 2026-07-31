@@ -110,6 +110,16 @@ fn validate_paths(d: &Detector) -> Result<()> {
             !p.trim().is_empty(),
             "detector '{id}': empty reclaimable path"
         );
+        // Backslashes before anything else, because what a path *means* is
+        // otherwise platform-dependent and detectors are shared across all
+        // three. `C:\Windows` is an absolute path on Windows and a single
+        // oddly-named file on Linux; rejecting the separator outright makes
+        // every check below give the same answer everywhere. Rust accepts `/`
+        // on Windows, so nothing legitimate needs a backslash.
+        anyhow::ensure!(
+            !p.contains('\\'),
+            "detector '{id}': path '{p}' uses backslashes; separate with '/' on every platform"
+        );
         anyhow::ensure!(
             !Path::new(p).is_absolute(),
             "detector '{id}': path '{p}' is absolute; paths are relative to the project root"
@@ -188,14 +198,29 @@ mod tests {
     #[test]
     fn paths_cannot_escape_the_project_root() {
         for bad in ["../..", "../../etc", "a/../../b", "/etc", "C:\\\\Windows"] {
-            let err = parse(&detector_with(bad, "cmd"))
-                .expect_err("'{bad}' must be rejected")
-                .to_string();
+            let err = parse(&detector_with(bad, "cmd")).unwrap_err().to_string();
             assert!(
-                err.contains("absolute") || err.contains("stay inside"),
+                err.contains("absolute")
+                    || err.contains("stay inside")
+                    || err.contains("backslash"),
                 "wrong error for {bad:?}: {err}"
             );
         }
+    }
+
+    /// The same TOML has to mean the same thing on every platform. `C:\Windows`
+    /// is an absolute path on Windows and a legal filename on Linux, so the
+    /// separator is rejected rather than interpreted — otherwise this test
+    /// passes on one CI runner and fails on the others, which is how it was
+    /// found.
+    #[test]
+    fn backslash_separators_are_rejected_identically_everywhere() {
+        let err = parse(&detector_with("target\\\\debug", "cargo build"))
+            .unwrap_err()
+            .to_string();
+        assert!(err.contains("backslash"), "{err}");
+        // The portable spelling is fine.
+        assert!(parse(&detector_with("target/debug", "cargo build")).is_ok());
     }
 
     #[test]
