@@ -9,24 +9,37 @@ you what getting it back will *cost* you — and sorts by that, so you delete th
 It also refuses to touch a repo that has uncommitted or unpushed work. No flag
 overrides that.
 
+Every reclaimable directory is one row on a balance. Space you'd get back grows
+left of the spine; time you'd spend rebuilding grows right. **You read the lean,
+not the numbers** — and the line through the middle is where getting space back
+stops being worth the wait.
+
 ```
-  ~/dev/dashboard        [Node.js]  4.2 GB  (clean + pushed)
-      node_modules                   3.8 GB   restore: npm ci (~45s)
-      .next/cache                  412.0 MB   restore: npm run build (~1m 30s)
+  13.5 GB reclaimable across 6 targets · 21m 15s to rebuild it all
 
-! ~/dev/thesis-model     [Python]   2.1 GB  (uncommitted changes)
-      .venv                          2.1 GB   restore: python -m venv .venv && ... (~1m)
+       space freed │ time to rebuild
+      ████████████│██                dashboard/node_modules      3.7 GB     45s
+                                     npm ci
+  ████████████████│█████             parser/target/debug         6.5 GB      3m
+                                     cargo build
+         █████████│███               thesis/.venv                2.1 GB      1m
+                                     python -m venv .venv && pip install -r r…
+  ────────────────┼────────────────  break-even · 3 MB per second
+                ██│███               dashboard/.next/cache     120.0 MB  1m 30s
+                                     npm run build
+            ██████│████████          parser/target/release     800.0 MB     10m
+                                     cargo build --release
+               ███│██████            mobile/.gradle            300.0 MB      5m
+                                     ./gradlew build
 
-  ~/dev/parser           [Rust]     6.7 GB  (clean + pushed)
-      target/debug                   6.7 GB   restore: cargo build (~3m)
+  Held back — 2.1 GB in repos with work that isn't backed up
+    thesis-model               Python           uncommitted changes
 
-─────────────────────────────────────────────
-Reclaimable now : 10.9 GB
-Cost to restore : ~5m 15s
-Held back       : 2.1 GB in repos with uncommitted or unpushed work
-
-Run with --reclaim to delete. Nothing has been touched.
+  Run with --reclaim to delete. Nothing has been touched.
 ```
+
+The three rows above the line give back 12.3 GB for about five minutes. The three
+below give back 1.2 GB for another sixteen. That asymmetry is the whole product.
 
 ## Install
 
@@ -41,10 +54,27 @@ forcefree                      # dry run on the current directory
 forcefree ~/dev                # dry run somewhere specific
 forcefree ~/dev --reclaim      # actually delete, after confirmation
 forcefree ~/dev --aggressive   # also consider build outputs (dist/, bin/)
+forcefree ~/dev --all          # every target, not just those above the line
+forcefree ~/dev --worth 10     # move the break-even line (default 3 MB/s)
 forcefree --list-detectors     # what ecosystems are supported
 ```
 
-Dry run is the default. You have to ask for deletion, and then confirm it.
+Dry run is the default. You have to ask for deletion, and then confirm it — and
+the report is printed before the prompt, so you always see the list you're
+agreeing to.
+
+`--worth` sets what counts as a fair trade, in megabytes returned per second of
+rebuild. Rows better than that lean left; rows worse lean right. The default of
+3 MB/s is calibrated so that a `node_modules` you can restore in under a minute
+comes out ahead and a ten-minute release build does not.
+
+### Sizes are what you'd actually get back
+
+pnpm and friends keep one copy of a package in a global store and hard link it
+into every project. Deleting `node_modules` then frees almost nothing — the
+bytes stay alive in the store. ForceFree counts links, and reports what deletion
+would really return rather than what `du` would say. Where they differ, it says
+so. `--no-link-check` skips the accounting if you'd rather have the speed.
 
 ## How it decides what's safe
 

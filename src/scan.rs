@@ -59,10 +59,6 @@ pub struct Project {
 }
 
 impl Project {
-    pub fn total_bytes(&self) -> u64 {
-        self.targets.iter().map(|t| t.bytes).sum()
-    }
-
     pub fn reclaimable_bytes(&self) -> u64 {
         self.targets.iter().map(|t| t.reclaimable_bytes()).sum()
     }
@@ -73,12 +69,6 @@ impl Project {
 
     pub fn rebuild_seconds(&self) -> u64 {
         self.targets.iter().map(|t| t.rebuild_seconds as u64).sum()
-    }
-
-    /// Reclaimable bytes per second of rebuild, for the project as a whole.
-    /// This is what the report ranks on.
-    pub fn efficiency(&self) -> f64 {
-        self.reclaimable_bytes() as f64 / self.rebuild_seconds().max(1) as f64
     }
 
     pub fn unreadable(&self) -> u32 {

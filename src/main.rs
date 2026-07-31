@@ -6,9 +6,11 @@
 //!   3. Rank by restore cost, not just size.
 //!   4. Ecosystems are data (detectors/*.toml), never code.
 
+mod chart;
 mod detector;
 mod git;
 mod links;
+mod palette;
 mod reclaim;
 mod report;
 mod scan;
@@ -42,8 +44,17 @@ struct Args {
     no_link_check: bool,
 
     /// Skip the confirmation prompt. Only meaningful with --reclaim.
-    #[arg(long)]
+    #[arg(long, requires = "reclaim")]
     yes: bool,
+
+    /// Megabytes per second of rebuild at which reclaiming breaks even. Rows
+    /// above this lean left in the chart; rows below lean right.
+    #[arg(long, value_name = "MB_PER_SEC", default_value_t = chart::DEFAULT_WORTH_RATE)]
+    worth: f64,
+
+    /// Show every target, not just those above the break-even line.
+    #[arg(long)]
+    all: bool,
 
     /// List the ecosystems this build knows about, then exit.
     #[arg(long)]
@@ -80,8 +91,11 @@ fn main() -> Result<()> {
         },
     );
 
+    // Always show the report, including before deleting. Asking "type yes" over
+    // a figure the user has never seen itemised is not informed consent.
+    report::render(&projects, args.worth, args.all);
+
     if !args.reclaim {
-        report::render(&projects);
         return Ok(());
     }
 

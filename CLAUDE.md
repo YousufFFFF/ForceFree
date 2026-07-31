@@ -40,7 +40,10 @@ so rather than working around it.
 | `src/main.rs` | CLI parsing, orchestration |
 | `src/detector.rs` | Detector model, loading, validation |
 | `src/scan.rs` | Parallel walk, project recognition, sizing |
+| `src/links.rs` | Hard link accounting — what deletion really frees |
 | `src/git.rs` | Safety checks |
+| `src/chart.rs` | Diverging-bar geometry — pure, no I/O |
+| `src/palette.rs` | The "Verdigris" colour roles |
 | `src/report.rs` | Output formatting, cost ranking |
 | `src/reclaim.rs` | Deletion, confirmation |
 | `detectors/*.toml` | Ecosystem definitions — **data, not code** |

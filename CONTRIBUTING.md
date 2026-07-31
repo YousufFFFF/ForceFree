@@ -79,7 +79,10 @@ The codebase is small and each file has one job:
 |---|---|
 | `src/detector.rs` | Detector model, loading, validation |
 | `src/scan.rs` | Parallel walk, project recognition, sizing |
+| `src/links.rs` | Hard link accounting — what deletion really frees |
 | `src/git.rs` | Safety checks — is this work backed up? |
+| `src/chart.rs` | Diverging-bar geometry — pure arithmetic, no I/O |
+| `src/palette.rs` | The "Verdigris" colour roles |
 | `src/report.rs` | Output formatting and cost ranking |
 | `src/reclaim.rs` | Deletion, confirmation |
 

@@ -17,6 +17,15 @@ toml = "0.8"
 jwalk = "0.8"
 anyhow = "1"
 
+# Terminal colour. All three are already compiled in this tree via clap ->
+# anstream, so these are direct edges rather than new crates. anstream decides
+# whether colour is emitted at all (NO_COLOR, CLICOLOR, TTY detection, Windows
+# virtual-terminal mode); anstyle-query answers whether truecolour is available,
+# which anstream does not; anstyle carries the styles themselves.
+anstream = "1"
+anstyle = "1"
+anstyle-query = "1"
+
 # Hard link counts and file identity. std exposes both on Unix via MetadataExt,
 # but on Windows `number_of_links` and `file_index` are still unstable
 # (rust#63010), so we call GetFileInformationByHandle directly. windows-sys is
