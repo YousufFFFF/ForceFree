@@ -47,10 +47,22 @@ fn unreadable_note(n: u32) -> String {
     }
 }
 
+/// Same for a whole project: if any target inside it was incomplete, its total
+/// is a lower bound too.
+fn project_size(p: &Project) -> String {
+    if p.unreadable() > 0 {
+        format!("~{}", bytes(p.total_bytes()))
+    } else {
+        bytes(p.total_bytes())
+    }
+}
+
 /// One line explaining every `~` in the output, printed only when there is one.
 pub fn lower_bound_warning(n: u32) -> Option<String> {
-    (n > 0)
-        .then(|| format!("Note: {n} entries could not be read. Sizes marked ~ are lower bounds."))
+    (n > 0).then(|| {
+        let noun = if n == 1 { "entry" } else { "entries" };
+        format!("Note: {n} {noun} could not be read. Sizes marked ~ are lower bounds.")
+    })
 }
 
 pub fn render(projects: &[Project]) {
@@ -71,7 +83,7 @@ pub fn render(projects: &[Project]) {
             "{marker}{}  [{}]  {}  ({})",
             p.root.display(),
             p.ecosystem,
-            bytes(p.total_bytes()),
+            project_size(p),
             p.git_state.label()
         );
 
@@ -161,6 +173,7 @@ mod tests {
     #[test]
     fn lower_bound_warning_only_appears_when_something_was_missed() {
         assert!(lower_bound_warning(0).is_none());
-        assert!(lower_bound_warning(3).unwrap().contains('3'));
+        assert!(lower_bound_warning(1).unwrap().contains("1 entry could"));
+        assert!(lower_bound_warning(3).unwrap().contains("3 entries could"));
     }
 }

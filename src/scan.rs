@@ -71,11 +71,21 @@ fn dir_size(path: &Path) -> Measured {
     let mut m = Measured::default();
     for entry in WalkDir::new(path).skip_hidden(false) {
         match entry {
-            Ok(e) => match e.metadata() {
-                Ok(meta) if meta.is_file() => m.bytes += meta.len(),
-                Ok(_) => {}
-                Err(_) => m.unreadable += 1,
-            },
+            Ok(e) => {
+                // jwalk does not yield an Err for a directory it could not read
+                // into — it hands back the entry with the failure parked in
+                // `read_children_error`. That is the usual way sizing goes wrong
+                // (permissions, a cloud-sync placeholder that won't hydrate), so
+                // missing it here would leave the whole count silently short.
+                if e.read_children_error.is_some() {
+                    m.unreadable += 1;
+                }
+                match e.metadata() {
+                    Ok(meta) if meta.is_file() => m.bytes += meta.len(),
+                    Ok(_) => {}
+                    Err(_) => m.unreadable += 1,
+                }
+            }
             Err(_) => m.unreadable += 1,
         }
     }
