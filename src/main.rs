@@ -99,5 +99,5 @@ fn main() -> Result<()> {
         return Ok(());
     }
 
-    reclaim::run(&projects, args.yes)
+    reclaim::run(&projects, args.yes, args.worth, args.all)
 }

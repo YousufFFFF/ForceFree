@@ -43,9 +43,17 @@ below give back 1.2 GB for another sixteen. That asymmetry is the whole product.
 
 ## Install
 
+Not on crates.io yet — build it from source. Rust 1.75 or newer:
+
 ```bash
-cargo install forcefree
+git clone https://github.com/YousufFFFF/ForceFree
+cd ForceFree
+cargo build --release
 ```
+
+The binary lands in `target/release/forcefree`. A `cargo install forcefree`
+release will follow once the reclaim path has the test coverage a deletion tool
+ought to have.
 
 ## Use
 

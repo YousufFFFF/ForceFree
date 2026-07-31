@@ -67,10 +67,6 @@ impl Project {
         self.targets.iter().map(|t| t.shared_bytes).sum()
     }
 
-    pub fn rebuild_seconds(&self) -> u64 {
-        self.targets.iter().map(|t| t.rebuild_seconds as u64).sum()
-    }
-
     pub fn unreadable(&self) -> u32 {
         self.targets.iter().map(|t| t.unreadable).sum()
     }

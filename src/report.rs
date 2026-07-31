@@ -17,6 +17,7 @@ use crate::palette;
 use crate::scan::{Project, Target};
 use anstream::println;
 use anstyle::Reset;
+use std::path::Path;
 
 /// Column budget. Fixed rather than measured: this is what a README code block
 /// renders at, and the README is where the output has to look right.
@@ -198,21 +199,67 @@ fn bar_row(b: Bars, label: &str, size: &str, time: &str) -> String {
     )
 }
 
+/// A path as a human should see it.
+///
+/// `Path::canonicalize` on Windows returns the extended-length form,
+/// `\\?\C:\Users\...`. It is the right thing to pass back to the filesystem —
+/// it is what lets long paths work — and entirely wrong to print.
+pub fn display_path(p: &Path) -> String {
+    let s = p.display().to_string();
+    s.strip_prefix(r"\\?\").unwrap_or(&s).to_string()
+}
+
+/// One target with the project that owns it — the project supplies the label
+/// and, at deletion time, the root the target must stay inside.
+pub type Row<'a> = (&'a Project, &'a Target);
+
+/// Eligible targets, best deal first, split at the break-even line.
+///
+/// The single source of truth for both the chart and what `--reclaim` acts on.
+/// When these were computed separately the tool could draw a line saying three
+/// of six targets weren't worth it and then delete all six.
+///
+/// Ranking lives here rather than in the scan: one flat list across every
+/// project, because "what should I delete first" does not respect project
+/// boundaries, and grouping would bury the ranking it exists to show.
+pub fn ranked(projects: &[Project], worth_rate: f64) -> (Vec<Row<'_>>, Vec<Row<'_>>) {
+    let mut rows: Vec<Row> = projects
+        .iter()
+        .filter(|p| p.git_state.is_safe_to_reclaim())
+        .flat_map(|p| p.targets.iter().map(move |t| (p, t)))
+        .collect();
+    rows.sort_by(|a, b| b.1.efficiency().total_cmp(&a.1.efficiency()));
+
+    let drawn = bars_for(&rows, worth_rate);
+    let split = chart::break_even_at(&drawn).unwrap_or(rows.len());
+    let below = rows.split_off(split);
+    (rows, below)
+}
+
+/// Bar geometry for a ranked list. Shared so the split and the drawing cannot
+/// disagree about where the line falls.
+fn bars_for(rows: &[Row<'_>], worth_rate: f64) -> Vec<Bars> {
+    let units: Vec<_> = rows
+        .iter()
+        .map(|(_, t)| chart::units(t.reclaimable_bytes(), t.rebuild_seconds, worth_rate))
+        .collect();
+    let scale = chart::scale_for(&units, LEFT_FIELD.min(RIGHT_FIELD));
+    units
+        .iter()
+        .map(|u| chart::bars(*u, scale, LEFT_FIELD))
+        .collect()
+}
+
 pub fn render(projects: &[Project], worth_rate: f64, show_all: bool) {
     if projects.is_empty() {
         println!("Nothing reclaimable found.");
         return;
     }
 
-    // Ranking lives here, not in the scan. One flat list across every project,
-    // because "what should I delete first" does not respect project boundaries —
-    // grouping would bury the ranking it exists to show.
-    let mut rows: Vec<(&Project, &Target)> = projects
-        .iter()
-        .filter(|p| p.git_state.is_safe_to_reclaim())
-        .flat_map(|p| p.targets.iter().map(move |t| (p, t)))
-        .collect();
-    rows.sort_by(|a, b| b.1.efficiency().total_cmp(&a.1.efficiency()));
+    let (above, below) = ranked(projects, worth_rate);
+    let cut = (!below.is_empty()).then_some(above.len());
+    let mut rows = above;
+    rows.extend(below);
 
     let blocked: Vec<&Project> = projects
         .iter()
@@ -229,15 +276,7 @@ pub fn render(projects: &[Project], worth_rate: f64, show_all: bool) {
         return;
     }
 
-    let units: Vec<_> = rows
-        .iter()
-        .map(|(_, t)| chart::units(t.reclaimable_bytes(), t.rebuild_seconds, worth_rate))
-        .collect();
-    let scale = chart::scale_for(&units, LEFT_FIELD.min(RIGHT_FIELD));
-    let drawn: Vec<Bars> = units
-        .iter()
-        .map(|u| chart::bars(*u, scale, LEFT_FIELD))
-        .collect();
+    let drawn = bars_for(&rows, worth_rate);
 
     let total_bytes: u64 = rows.iter().map(|(_, t)| t.reclaimable_bytes()).sum();
     let total_secs: u64 = rows.iter().map(|(_, t)| t.rebuild_seconds as u64).sum();
@@ -258,7 +297,6 @@ pub fn render(projects: &[Project], worth_rate: f64, show_all: bool) {
 
     // Everything that leans left, plus a few that don't, so the reader can see
     // where the good deals stop and what lies immediately beyond.
-    let cut = chart::break_even_at(&drawn);
     let shown = if show_all {
         rows.len()
     } else {
@@ -442,6 +480,21 @@ mod tests {
         let label = "x".repeat(NAME_FIELD);
         let w = visible_width(&bar_row(b, &label, "1023.9 GB", "23h 59m"));
         assert!(w <= 80, "{w} columns");
+    }
+
+    /// The extended-length prefix is right for the filesystem and wrong for a
+    /// human. It leaked into the deletion log, which is the one place people
+    /// read every character.
+    #[test]
+    fn the_windows_extended_length_prefix_is_not_shown() {
+        assert_eq!(
+            display_path(Path::new(r"\\?\C:\Users\me\app\node_modules")),
+            r"C:\Users\me\app\node_modules"
+        );
+        assert_eq!(
+            display_path(Path::new("/home/me/app/node_modules")),
+            "/home/me/app/node_modules"
+        );
     }
 
     /// Notes are the only prose in the output, so they are the only thing that
