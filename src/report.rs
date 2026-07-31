@@ -103,8 +103,16 @@ pub fn render(projects: &[Project]) {
     let (mut safe_bytes, mut safe_secs) = (0u64, 0u64);
     let mut blocked_bytes = 0u64;
 
+    // Ranking lives here, not in the scan. Best return per second of rebuild
+    // first, because that is the order you should actually delete in — sorting
+    // by size is what every other cleanup tool does and it recommends the wrong
+    // thing. On the tree this was built against, the largest project by size
+    // ranks fifth of six by cost.
+    let mut projects: Vec<&Project> = projects.iter().collect();
+    projects.sort_by(|a, b| b.efficiency().total_cmp(&a.efficiency()));
+
     println!();
-    for p in projects {
+    for p in &projects {
         let safe = p.git_state.is_safe_to_reclaim();
         let marker = if safe { "  " } else { "! " };
 
@@ -118,7 +126,9 @@ pub fn render(projects: &[Project]) {
 
         // Cheapest-to-restore first: that is the order you should delete in.
         let mut targets = p.targets.clone();
-        targets.sort_by(|a, b| b.efficiency().partial_cmp(&a.efficiency()).unwrap());
+        // total_cmp, not partial_cmp().unwrap() — an unwrap in a sort
+        // comparator is a panic waiting for the first NaN.
+        targets.sort_by(|a, b| b.efficiency().total_cmp(&a.efficiency()));
 
         for t in &targets {
             let name = t

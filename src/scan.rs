@@ -75,6 +75,12 @@ impl Project {
         self.targets.iter().map(|t| t.rebuild_seconds as u64).sum()
     }
 
+    /// Reclaimable bytes per second of rebuild, for the project as a whole.
+    /// This is what the report ranks on.
+    pub fn efficiency(&self) -> f64 {
+        self.reclaimable_bytes() as f64 / self.rebuild_seconds().max(1) as f64
+    }
+
     pub fn unreadable(&self) -> u32 {
         self.targets.iter().map(|t| t.unreadable).sum()
     }
@@ -203,7 +209,8 @@ pub struct Options {
     pub skip_link_check: bool,
 }
 
-/// Walk `root`, returning every project found. Ordering is the report's job.
+/// Walk `root`, returning every project found, in discovery order. Ranking is
+/// deliberately not done here — see `report::render`.
 pub fn scan(root: &Path, detectors: &[Detector], opts: Options) -> Vec<Project> {
     let mut projects = Vec::new();
     let mut repos = git::RepoCache::default();
@@ -278,7 +285,6 @@ pub fn scan(root: &Path, detectors: &[Detector], opts: Options) -> Vec<Project> 
         });
     }
 
-    projects.sort_by_key(|p| std::cmp::Reverse(p.total_bytes()));
     projects
 }
 
