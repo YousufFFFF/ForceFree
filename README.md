@@ -98,8 +98,8 @@ The things worth building next, roughly in order:
 ## Building from source
 
 ```bash
-git clone https://github.com/YousufFFFF/forcefree
-cd forcefree
+git clone https://github.com/YousufFFFF/ForceFree
+cd ForceFree
 cargo build --release
 cargo test
 ```
