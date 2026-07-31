@@ -1,6 +1,6 @@
 //! Deletion. Deliberately boring and deliberately hard to trigger by accident.
 
-use crate::report::{bytes, duration};
+use crate::report::{bytes, duration, lower_bound_warning};
 use crate::scan::Project;
 use anyhow::Result;
 use std::io::{self, Write};
@@ -28,12 +28,18 @@ pub fn run(projects: &[Project], skip_prompt: bool) -> Result<()> {
         .map(|t| t.rebuild_seconds as u64)
         .sum();
 
+    let unreadable: u32 = eligible.iter().map(|p| p.unreadable()).sum();
+
     println!(
-        "\nAbout to delete {} across {} project(s).",
+        "\nAbout to delete {}{} across {} project(s).",
+        if unreadable > 0 { "at least " } else { "" },
         bytes(total),
         eligible.len()
     );
     println!("Restoring all of it would cost roughly {}.", duration(secs));
+    if let Some(w) = lower_bound_warning(unreadable) {
+        println!("{w}");
+    }
     if held_back > 0 {
         println!("{held_back} project(s) will be skipped: uncommitted or unpushed work.");
     }

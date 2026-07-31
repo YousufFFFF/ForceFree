@@ -2,7 +2,7 @@
 //! that it does not just say "you can reclaim 8 GB" — it says what getting it
 //! back will cost you, and sorts by that.
 
-use crate::scan::Project;
+use crate::scan::{Project, Target};
 
 pub fn bytes(n: u64) -> String {
     const UNITS: [&str; 5] = ["B", "KB", "MB", "GB", "TB"];
@@ -27,6 +27,30 @@ pub fn duration(secs: u64) -> String {
     } else {
         format!("{}h {}m", secs / 3600, (secs % 3600) / 60)
     }
+}
+
+/// A size we could not measure completely is prefixed `~` and never presented
+/// as if it were exact.
+pub fn size_of(t: &Target) -> String {
+    if t.unreadable > 0 {
+        format!("~{}", bytes(t.bytes))
+    } else {
+        bytes(t.bytes)
+    }
+}
+
+fn unreadable_note(n: u32) -> String {
+    if n == 0 {
+        String::new()
+    } else {
+        format!("  [{n} unreadable]")
+    }
+}
+
+/// One line explaining every `~` in the output, printed only when there is one.
+pub fn lower_bound_warning(n: u32) -> Option<String> {
+    (n > 0)
+        .then(|| format!("Note: {n} entries could not be read. Sizes marked ~ are lower bounds."))
 }
 
 pub fn render(projects: &[Project]) {
@@ -63,11 +87,12 @@ pub fn render(projects: &[Project]) {
                 .display()
                 .to_string();
             println!(
-                "      {:<28} {:>10}   restore: {} (~{})",
+                "      {:<28} {:>10}   restore: {} (~{}){}",
                 name,
-                bytes(t.bytes),
+                size_of(t),
                 t.restore_command,
-                duration(t.rebuild_seconds as u64)
+                duration(t.rebuild_seconds as u64),
+                unreadable_note(t.unreadable),
             );
         }
 
@@ -87,6 +112,9 @@ pub fn render(projects: &[Project]) {
     println!("─────────────────────────────────────────────");
     println!("Reclaimable now : {}", bytes(safe_bytes));
     println!("Cost to restore : ~{}", duration(safe_secs));
+    if let Some(w) = lower_bound_warning(projects.iter().map(|p| p.unreadable()).sum()) {
+        println!("{w}");
+    }
     if blocked_bytes > 0 {
         println!(
             "Held back       : {} in repos with uncommitted or unpushed work",
@@ -112,5 +140,27 @@ mod tests {
         assert_eq!(duration(45), "45s");
         assert_eq!(duration(90), "1m 30s");
         assert_eq!(duration(3700), "1h 1m");
+    }
+
+    fn target(bytes: u64, unreadable: u32) -> Target {
+        Target {
+            path: "node_modules".into(),
+            bytes,
+            unreadable,
+            restore_command: "npm ci".into(),
+            rebuild_seconds: 45,
+        }
+    }
+
+    #[test]
+    fn incomplete_measurements_are_never_shown_as_exact() {
+        assert_eq!(size_of(&target(1024, 0)), "1.0 KB");
+        assert_eq!(size_of(&target(1024, 7)), "~1.0 KB");
+    }
+
+    #[test]
+    fn lower_bound_warning_only_appears_when_something_was_missed() {
+        assert!(lower_bound_warning(0).is_none());
+        assert!(lower_bound_warning(3).unwrap().contains('3'));
     }
 }
