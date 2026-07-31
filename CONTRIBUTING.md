@@ -89,8 +89,19 @@ cargo test
 cargo run -- ~/some/dev/folder      # dry run, always safe
 ```
 
-**MSRV is 1.75.** The committed `Cargo.lock` is pinned for it. On a newer
-toolchain, `cargo update` is fine.
+**MSRV is 1.75**, declared in `Cargo.toml` and enforced by a CI job, and the
+committed `Cargo.lock` is resolved to match. It is kept at lockfile format v3 on
+purpose — Cargo 1.75 cannot read v4.
+
+A plain `cargo update` on a modern toolchain will pull in crates that need a much
+newer compiler and quietly break the MSRV job. Use:
+
+```bash
+cargo update --config "resolver.incompatible-rust-versions='fallback'"
+```
+
+Cargo 1.75's own resolver is not MSRV-aware, so `cargo generate-lockfile` under
+1.75 does not work either — it happily selects crates that need edition 2024.
 
 ## Non-negotiables
 

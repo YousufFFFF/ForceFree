@@ -21,3 +21,18 @@ jobs:
       - run: cargo fmt --check
       - run: cargo clippy --all-targets -- -D warnings
       - run: cargo test --all
+      # The committed lockfile must actually build. Without --locked, cargo
+      # resolves around a broken Cargo.lock and CI stays green while a fresh
+      # clone fails — which is exactly how an unbuildable anstream/anstyle-wincon
+      # pair shipped unnoticed.
+      - run: cargo build --locked
+
+  msrv:
+    # MSRV is claimed in README, CLAUDE.md and CONTRIBUTING.md. Claiming it
+    # without testing it means finding out from a bug report.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@1.75.0
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo test --all --locked
