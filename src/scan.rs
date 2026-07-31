@@ -62,6 +62,7 @@ fn dir_size(path: &Path) -> u64 {
 /// Walk `root`, returning every project found, largest first.
 pub fn scan(root: &Path, detectors: &[Detector], aggressive: bool) -> Vec<Project> {
     let mut projects = Vec::new();
+    let mut repos = git::RepoCache::default();
 
     let walker = WalkDir::new(root)
         .skip_hidden(false)
@@ -94,7 +95,8 @@ pub fn scan(root: &Path, detectors: &[Detector], aggressive: bool) -> Vec<Projec
             continue;
         };
 
-        let git_state = git::inspect(&dir);
+        // Gated on the enclosing worktree, which may be well above `dir`.
+        let git_state = repos.state_for(&dir);
 
         let targets: Vec<Target> = detector
             .reclaimable

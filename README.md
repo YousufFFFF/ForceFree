@@ -48,12 +48,16 @@ Dry run is the default. You have to ask for deletion, and then confirm it.
 
 ## How it decides what's safe
 
-Before touching any project, ForceFree checks its git state:
+Before touching any project, ForceFree checks the state of the repository that
+*contains* it — not just the project directory. A project at
+`repo/services/api` is gated on `repo`, so uncommitted work anywhere in the
+repository protects everything inside it.
 
 | State | Behaviour |
 |---|---|
 | Uncommitted changes | **Skipped.** Nothing here is backed up. |
 | Unpushed commits | **Skipped.** A remote doesn't have this yet. |
+| Repository unreadable | **Skipped.** Git is missing, or the repo is corrupt, or another process holds a lock. If we can't tell, we don't touch it. |
 | Clean and pushed | Eligible — everything is recoverable with `git clone`. |
 | Not a repo | Eligible, but only paths a detector explicitly named. |
 

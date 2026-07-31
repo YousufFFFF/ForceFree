@@ -16,6 +16,13 @@ toml = "0.8"
 jwalk = "0.8"
 anyhow = "1"
 
+[dev-dependencies]
+# Test-only. The git safety tests need throwaway repositories that clean
+# themselves up; the previous fixed path under temp_dir() collided whenever two
+# test runs overlapped. Does not ship in the binary and does not affect the
+# MSRV consumers see.
+tempfile = "3"
+
 [profile.release]
 opt-level = 3
 lto = true
