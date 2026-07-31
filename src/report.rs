@@ -39,6 +39,19 @@ pub fn size_of(t: &Target) -> String {
     }
 }
 
+/// When part of a target is hard linked elsewhere, the apparent size is not the
+/// number the user cares about — deleting it would return far less. Show both,
+/// and only when they differ, so the ordinary case stays a single figure.
+fn shared_note(t: &Target) -> String {
+    if t.shared_bytes == 0 {
+        return String::new();
+    }
+    format!(
+        "  ({} freed, rest is hard linked)",
+        bytes(t.reclaimable_bytes())
+    )
+}
+
 fn unreadable_note(n: u32) -> String {
     if n == 0 {
         String::new()
@@ -55,6 +68,22 @@ fn project_size(p: &Project) -> String {
     } else {
         bytes(p.total_bytes())
     }
+}
+
+/// Explains the gap between what these directories look like and what removing
+/// them would give back. Only printed when there is a gap.
+///
+/// Two things land here: bytes hard linked from outside (a pnpm store keeps
+/// them alive), and the same physical file counted twice inside one target.
+/// Neither returns to the disk, so both belong in the same caveat.
+pub fn shared_warning(shared: u64) -> Option<String> {
+    (shared > 0).then(|| {
+        format!(
+            "Note: {} of the apparent size is hard linked and would not come back \
+             — shared package stores, or one file counted under two names.",
+            bytes(shared)
+        )
+    })
 }
 
 /// One line explaining every `~` in the output, printed only when there is one.
@@ -99,24 +128,21 @@ pub fn render(projects: &[Project]) {
                 .display()
                 .to_string();
             println!(
-                "      {:<28} {:>10}   restore: {} (~{}){}",
+                "      {:<28} {:>10}   restore: {} (~{}){}{}",
                 name,
                 size_of(t),
                 t.restore_command,
                 duration(t.rebuild_seconds as u64),
                 unreadable_note(t.unreadable),
+                shared_note(t),
             );
         }
 
         if safe {
-            safe_bytes += p.total_bytes();
-            safe_secs += p
-                .targets
-                .iter()
-                .map(|t| t.rebuild_seconds as u64)
-                .sum::<u64>();
+            safe_bytes += p.reclaimable_bytes();
+            safe_secs += p.rebuild_seconds();
         } else {
-            blocked_bytes += p.total_bytes();
+            blocked_bytes += p.reclaimable_bytes();
         }
         println!();
     }
@@ -124,6 +150,9 @@ pub fn render(projects: &[Project]) {
     println!("─────────────────────────────────────────────");
     println!("Reclaimable now : {}", bytes(safe_bytes));
     println!("Cost to restore : ~{}", duration(safe_secs));
+    if let Some(w) = shared_warning(projects.iter().map(|p| p.shared_bytes()).sum()) {
+        println!("{w}");
+    }
     if let Some(w) = lower_bound_warning(projects.iter().map(|p| p.unreadable()).sum()) {
         println!("{w}");
     }
@@ -158,6 +187,7 @@ mod tests {
         Target {
             path: "node_modules".into(),
             bytes,
+            shared_bytes: 0,
             unreadable,
             restore_command: "npm ci".into(),
             rebuild_seconds: 45,

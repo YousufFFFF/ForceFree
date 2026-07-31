@@ -17,6 +17,18 @@ toml = "0.8"
 jwalk = "0.8"
 anyhow = "1"
 
+# Hard link counts and file identity. std exposes both on Unix via MetadataExt,
+# but on Windows `number_of_links` and `file_index` are still unstable
+# (rust#63010), so we call GetFileInformationByHandle directly. windows-sys is
+# already compiled in this tree via clap -> anstream -> anstyle-wincon, so this
+# adds a direct edge and no new crate.
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.61", features = [
+  "Win32_Foundation",
+  "Win32_Security",          # CreateFileW takes SECURITY_ATTRIBUTES
+  "Win32_Storage_FileSystem",
+] }
+
 [dev-dependencies]
 # Test-only. The git safety tests need throwaway repositories that clean
 # themselves up; the previous fixed path under temp_dir() collided whenever two

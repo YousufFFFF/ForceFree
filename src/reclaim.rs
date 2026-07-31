@@ -1,6 +1,6 @@
 //! Deletion. Deliberately boring and deliberately hard to trigger by accident.
 
-use crate::report::{bytes, duration, lower_bound_warning};
+use crate::report::{bytes, duration, lower_bound_warning, shared_warning};
 use crate::scan::Project;
 use anyhow::Result;
 use std::io::{self, Write};
@@ -21,22 +21,22 @@ pub fn run(projects: &[Project], skip_prompt: bool) -> Result<()> {
         return Ok(());
     }
 
-    let total: u64 = eligible.iter().map(|p| p.total_bytes()).sum();
-    let secs: u64 = eligible
-        .iter()
-        .flat_map(|p| p.targets.iter())
-        .map(|t| t.rebuild_seconds as u64)
-        .sum();
-
+    // What the filesystem would actually give back, not apparent size.
+    let total: u64 = eligible.iter().map(|p| p.reclaimable_bytes()).sum();
+    let secs: u64 = eligible.iter().map(|p| p.rebuild_seconds()).sum();
     let unreadable: u32 = eligible.iter().map(|p| p.unreadable()).sum();
+    let shared: u64 = eligible.iter().map(|p| p.shared_bytes()).sum();
 
     println!(
-        "\nAbout to delete {}{} across {} project(s).",
+        "\nAbout to free {}{} across {} project(s).",
         if unreadable > 0 { "at least " } else { "" },
         bytes(total),
         eligible.len()
     );
     println!("Restoring all of it would cost roughly {}.", duration(secs));
+    if let Some(w) = shared_warning(shared) {
+        println!("{w}");
+    }
     if let Some(w) = lower_bound_warning(unreadable) {
         println!("{w}");
     }

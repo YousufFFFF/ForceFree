@@ -8,6 +8,7 @@
 
 mod detector;
 mod git;
+mod links;
 mod reclaim;
 mod report;
 mod scan;
@@ -34,6 +35,11 @@ struct Args {
     /// Include targets marked aggressive_only (build outputs, dist dirs).
     #[arg(long)]
     aggressive: bool,
+
+    /// Skip hard link accounting. Faster, but sizes then include bytes that
+    /// deletion would not actually give back.
+    #[arg(long)]
+    no_link_check: bool,
 
     /// Skip the confirmation prompt. Only meaningful with --reclaim.
     #[arg(long)]
@@ -65,7 +71,14 @@ fn main() -> Result<()> {
     let root = args.path.canonicalize().unwrap_or(args.path.clone());
     eprintln!("Scanning {} ...", root.display());
 
-    let projects = scan::scan(&root, &detectors, args.aggressive);
+    let projects = scan::scan(
+        &root,
+        &detectors,
+        scan::Options {
+            aggressive: args.aggressive,
+            skip_link_check: args.no_link_check,
+        },
+    );
 
     if !args.reclaim {
         report::render(&projects);
