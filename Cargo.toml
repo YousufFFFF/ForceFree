@@ -1,0 +1,23 @@
+[package]
+name = "forcefree"
+version = "0.1.0"
+edition = "2021"
+description = "Find, rank and reclaim the disk space your dev projects are quietly eating."
+license = "MIT"
+repository = "https://github.com/YousufFFFF/forcefree"
+readme = "README.md"
+keywords = ["disk", "cleanup", "node-modules", "developer-tools", "cli"]
+categories = ["command-line-utilities", "development-tools"]
+
+[dependencies]
+clap = { version = "4.4", features = ["derive"] }
+serde = { version = "1", features = ["derive"] }
+toml = "0.8"
+jwalk = "0.8"
+anyhow = "1"
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+strip = true

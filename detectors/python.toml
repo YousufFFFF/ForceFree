@@ -1,0 +1,28 @@
+id = "python"
+name = "Python"
+markers = ["pyproject.toml", "requirements.txt", "setup.py", "Pipfile"]
+
+[[reclaimable]]
+path = ".venv"
+restore_command = "python -m venv .venv && pip install -r requirements.txt"
+rebuild_seconds = 60
+
+[[reclaimable]]
+path = "venv"
+restore_command = "python -m venv venv && pip install -r requirements.txt"
+rebuild_seconds = 60
+
+[[reclaimable]]
+path = "__pycache__"
+restore_command = "(regenerated automatically on next run)"
+rebuild_seconds = 2
+
+[[reclaimable]]
+path = ".pytest_cache"
+restore_command = "pytest"
+rebuild_seconds = 5
+
+[[reclaimable]]
+path = ".mypy_cache"
+restore_command = "mypy ."
+rebuild_seconds = 30

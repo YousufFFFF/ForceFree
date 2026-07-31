@@ -1,0 +1,15 @@
+id = "rust"
+name = "Rust"
+markers = ["Cargo.toml"]
+
+# target/ dirs are enormous but genuinely expensive to rebuild.
+# The high rebuild_seconds is what stops ForceFree recommending these first.
+[[reclaimable]]
+path = "target/debug"
+restore_command = "cargo build"
+rebuild_seconds = 180
+
+[[reclaimable]]
+path = "target/release"
+restore_command = "cargo build --release"
+rebuild_seconds = 600

@@ -1,0 +1,14 @@
+id = "go"
+name = "Go"
+markers = ["go.mod"]
+
+[[reclaimable]]
+path = "vendor"
+restore_command = "go mod vendor"
+rebuild_seconds = 30
+
+[[reclaimable]]
+path = "bin"
+restore_command = "go build ./..."
+rebuild_seconds = 45
+aggressive_only = true

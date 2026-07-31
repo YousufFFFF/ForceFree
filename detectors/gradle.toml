@@ -1,0 +1,18 @@
+id = "gradle"
+name = "Gradle / Android"
+markers = ["build.gradle", "build.gradle.kts", "settings.gradle", "settings.gradle.kts"]
+
+[[reclaimable]]
+path = "build"
+restore_command = "./gradlew build"
+rebuild_seconds = 240
+
+[[reclaimable]]
+path = ".gradle"
+restore_command = "./gradlew build"
+rebuild_seconds = 300
+
+[[reclaimable]]
+path = "app/build"
+restore_command = "./gradlew assembleDebug"
+rebuild_seconds = 300

@@ -1,0 +1,29 @@
+id = "node"
+name = "Node.js"
+markers = ["package.json"]
+
+[[reclaimable]]
+path = "node_modules"
+restore_command = "npm ci"
+rebuild_seconds = 45
+
+[[reclaimable]]
+path = ".next/cache"
+restore_command = "npm run build"
+rebuild_seconds = 90
+
+[[reclaimable]]
+path = ".nuxt"
+restore_command = "npm run build"
+rebuild_seconds = 75
+
+[[reclaimable]]
+path = ".turbo"
+restore_command = "npm run build"
+rebuild_seconds = 60
+
+[[reclaimable]]
+path = "dist"
+restore_command = "npm run build"
+rebuild_seconds = 60
+aggressive_only = true
