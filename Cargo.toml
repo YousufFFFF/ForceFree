@@ -17,6 +17,11 @@ toml = "0.8"
 jwalk = "0.8"
 anyhow = "1"
 
+# Carries recognised project roots off the walker threads. Already compiled here
+# via jwalk -> crossbeam, so this is a direct edge and no new crate. Its Sender
+# is Sync, which jwalk's process_read_dir closure requires; std's mpsc is not.
+crossbeam-channel = "0.5"
+
 # Terminal colour. All three are already compiled in this tree via clap ->
 # anstream, so these are direct edges rather than new crates. anstream decides
 # whether colour is emitted at all (NO_COLOR, CLICOLOR, TTY detection, Windows

@@ -50,6 +50,13 @@ pub struct Detector {
 
 impl Detector {
     /// Does this directory look like a project of this ecosystem?
+    ///
+    /// The scan no longer calls this: asking the filesystem once per marker per
+    /// detector cost a dozen `stat` calls for every directory on the disk, and
+    /// `scan::MarkerIndex` answers the same question from the names `read_dir`
+    /// already returned. Kept as the obvious-and-slow reference the fast path is
+    /// tested against.
+    #[cfg(test)]
     pub fn matches(&self, dir: &Path) -> bool {
         self.markers.iter().any(|m| dir.join(m).exists())
     }

@@ -26,9 +26,10 @@ use std::path::PathBuf;
     about = "Find, rank and reclaim the disk space your dev projects are quietly eating."
 )]
 struct Args {
-    /// Directory to scan. Defaults to the current directory.
+    /// Directories to scan. Give as many as you like; overlapping ones are
+    /// merged. Defaults to the current directory.
     #[arg(default_value = ".")]
-    path: PathBuf,
+    paths: Vec<PathBuf>,
 
     /// Actually delete. Without this, ForceFree only reports.
     #[arg(long)]
@@ -61,6 +62,60 @@ struct Args {
     list_detectors: bool,
 }
 
+/// Collect every project, showing what the scan is doing while it does it.
+///
+/// A whole-disk scan runs for minutes, and the previous behaviour was to print
+/// "Scanning ..." and then say nothing at all until it finished. The line is
+/// redrawn in place on stderr, and only when stderr is a terminal — piped or
+/// redirected output stays clean.
+fn scan_with_progress(
+    roots: &[PathBuf],
+    detectors: &[detector::Detector],
+    opts: scan::Options,
+) -> Vec<scan::Project> {
+    use std::io::{IsTerminal, Write};
+
+    // Nothing to draw on, so skip the bookkeeping entirely.
+    if !std::io::stderr().is_terminal() {
+        return scan::scan(roots, detectors, opts);
+    }
+
+    let mut projects = Vec::new();
+    let mut found = 0usize;
+    let mut current = String::new();
+
+    scan::scan_with(roots, detectors, opts, &mut |event| match event {
+        scan::Event::Found { root, ecosystem } => {
+            found += 1;
+            // The name of whatever is being measured right now, so a long pause
+            // on one enormous directory is explained rather than mysterious.
+            current = format!(
+                "{} [{ecosystem}]",
+                root.file_name()
+                    .map(|s| s.to_string_lossy().into_owned())
+                    .unwrap_or_default()
+            );
+        }
+        scan::Event::Project(p) => projects.push(p),
+        scan::Event::Progress(p) => {
+            // \r rather than a newline: one line that updates, not a log.
+            let _ = write!(
+                std::io::stderr(),
+                "\r  {} dirs · {} files · {found} projects · {:.40}   ",
+                p.dirs,
+                p.files,
+                current
+            );
+            let _ = std::io::stderr().flush();
+        }
+    });
+
+    // Wipe the progress line so it does not collide with the report.
+    let _ = write!(std::io::stderr(), "\r{:78}\r", "");
+    let _ = std::io::stderr().flush();
+    projects
+}
+
 fn main() -> Result<()> {
     let args = Args::parse();
     let detectors = detector::load_builtin()?;
@@ -79,11 +134,17 @@ fn main() -> Result<()> {
         return Ok(());
     }
 
-    let root = args.path.canonicalize().unwrap_or(args.path.clone());
-    eprintln!("Scanning {} ...", root.display());
+    let roots: Vec<PathBuf> = args
+        .paths
+        .iter()
+        .map(|p| p.canonicalize().unwrap_or_else(|_| p.clone()))
+        .collect();
+    for r in &roots {
+        eprintln!("Scanning {} ...", report::display_path(r));
+    }
 
-    let projects = scan::scan(
-        &root,
+    let projects = scan_with_progress(
+        &roots,
         &detectors,
         scan::Options {
             aggressive: args.aggressive,

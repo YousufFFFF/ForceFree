@@ -209,6 +209,7 @@ dependencies = [
  "anstyle-query",
  "anyhow",
  "clap",
+ "crossbeam-channel",
  "jwalk",
  "serde",
  "tempfile",
