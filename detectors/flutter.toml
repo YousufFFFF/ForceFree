@@ -1,0 +1,21 @@
+id = "flutter"
+name = "Flutter / Dart"
+
+# pubspec.yaml identifies both Flutter apps and plain Dart packages. Both use
+# the same two directories, so one detector covers them.
+markers = ["pubspec.yaml"]
+
+# Compiled output for every target platform at once — this is usually the
+# largest single directory in a Flutter project by a wide margin. Measured at
+# 2.0 GB on an ordinary phone app during development.
+[[reclaimable]]
+path = "build"
+restore_command = "flutter build"
+rebuild_seconds = 180
+
+# Package resolution and generated sources. Cheap to restore, so it ranks well
+# even though it is much smaller than build/.
+[[reclaimable]]
+path = ".dart_tool"
+restore_command = "flutter pub get"
+rebuild_seconds = 45

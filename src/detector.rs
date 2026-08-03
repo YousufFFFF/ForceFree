@@ -65,6 +65,7 @@ const BUILTIN: &[(&str, &str)] = &[
     ("python", include_str!("../detectors/python.toml")),
     ("gradle", include_str!("../detectors/gradle.toml")),
     ("go", include_str!("../detectors/go.toml")),
+    ("flutter", include_str!("../detectors/flutter.toml")),
 ];
 
 /// Parse every built-in detector. Fails loudly on a malformed file so a bad

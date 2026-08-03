@@ -104,7 +104,7 @@ no guessing.
 
 ## Supported ecosystems
 
-Node.js, Rust, Python, Gradle/Android, Go — and growing.
+Node.js, Rust, Python, Gradle/Android, Go, Flutter/Dart — and growing.
 
 **Yours missing?** Adding one is a ten-minute PR against a single TOML file and
 needs no Rust. See [CONTRIBUTING.md](CONTRIBUTING.md).
