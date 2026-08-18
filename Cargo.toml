@@ -30,6 +30,7 @@ crossbeam-channel = "0.5"
 anstream = "1"
 anstyle = "1"
 anstyle-query = "1"
+crossterm = "0.28"
 
 # Hard link counts and file identity. std exposes both on Unix via MetadataExt,
 # but on Windows `number_of_links` and `file_index` are still unstable

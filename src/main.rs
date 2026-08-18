@@ -14,6 +14,7 @@ mod palette;
 mod reclaim;
 mod report;
 mod scan;
+mod tui;
 
 use anyhow::Result;
 use clap::Parser;
@@ -56,6 +57,11 @@ struct Args {
     /// Show every target, not just those above the break-even line.
     #[arg(long)]
     all: bool,
+
+    /// Print a report and exit instead of opening the interactive view.
+    /// Implied whenever output is not a terminal.
+    #[arg(long)]
+    plain: bool,
 
     /// List the ecosystems this build knows about, then exit.
     #[arg(long)]
@@ -139,18 +145,29 @@ fn main() -> Result<()> {
         .iter()
         .map(|p| p.canonicalize().unwrap_or_else(|_| p.clone()))
         .collect();
+
+    let opts = scan::Options {
+        aggressive: args.aggressive,
+        skip_link_check: args.no_link_check,
+    };
+
+    // Interactive by default when there is a terminal to be interactive on.
+    // Piped, redirected, --plain and --reclaim all keep the old behaviour, so
+    // scripts and the README output are unaffected.
+    let interactive =
+        !args.plain && !args.reclaim && std::io::IsTerminal::is_terminal(&std::io::stdout());
+    if interactive {
+        // Paths given explicitly mean the user already knows what they want
+        // looked at, so start immediately rather than waiting for a keypress.
+        let auto_start = args.paths != vec![PathBuf::from(".")];
+        return tui::run(roots, detectors, opts, args.worth, auto_start);
+    }
+
     for r in &roots {
         eprintln!("Scanning {} ...", report::display_path(r));
     }
 
-    let projects = scan_with_progress(
-        &roots,
-        &detectors,
-        scan::Options {
-            aggressive: args.aggressive,
-            skip_link_check: args.no_link_check,
-        },
-    );
+    let projects = scan_with_progress(&roots, &detectors, opts);
 
     // Always show the report, including before deleting. Asking "type yes" over
     // a figure the user has never seen itemised is not informed consent.
